@@ -16,7 +16,7 @@ func (app *application) readIDParam(r *http.Request) (int64, error) {
 
 	// Retrive the movie id in params, parse it, and validate it.
 	id, err := strconv.ParseInt(params.ByName("id"), 10, 64)
-	if err != nil || id < 1{
+	if err != nil || id < 1 {
 		return 0, errors.New("invalid id parameter")
 	}
 
