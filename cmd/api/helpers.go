@@ -32,7 +32,7 @@ func (app *application) writeJSON(w http.ResponseWriter, status int, data interf
 		return err
 	}
 
-	// Append a newline.
+	// Append a newline for better layout shown in terminal.
 	js = append(js, '\n')
 
 	// Add the headers into the response header.
