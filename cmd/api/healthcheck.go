@@ -7,10 +7,12 @@ import (
 // healthcheckHandler shows the health status to client.
 func (app *application) healthcheckHandler(w http.ResponseWriter, r *http.Request) {
 
-	data := map[string]string{
-		"status":      "available",
-		"environment": "somthing",
-		"version":     version,
+	data := envelope{
+		"status": "available",
+		"system_info": map[string]string{
+			"environment": app.config.env,
+			"version":     version,
+		},
 	}
 
 	// Write JSON.

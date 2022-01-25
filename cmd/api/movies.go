@@ -22,6 +22,7 @@ func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// Create a dummy movie.
 	movie := data.Movie{
 		ID:       id,
 		CreateAt: time.Now(),
@@ -31,7 +32,8 @@ func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request)
 		Version:  1,
 	}
 
-	err = app.writeJSON(w, http.StatusOK, movie, nil)
+	// Write the responses with movie in the JSON form.
+	err = app.writeJSON(w, http.StatusOK, envelope{"movie": movie}, nil)
 	if err != nil {
 		app.logger.Println(err)
 		http.Error(w, "Server Internal Error!", http.StatusInternalServerError)

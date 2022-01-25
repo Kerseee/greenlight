@@ -9,6 +9,9 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
+// envelope envelopes the struct that will be writen to responses in JSON.
+type envelope map[string]interface{}
+
 // readIDParam retrieves the id in http.Request, parse it to int64 and return.
 // If the id cannot be parsed to int64 or id < 1 then return 0 and an error.
 func (app *application) readIDParam(r *http.Request) (int64, error) {
@@ -25,9 +28,9 @@ func (app *application) readIDParam(r *http.Request) (int64, error) {
 }
 
 // writeJSON is a helper for sending responses in JSON.
-func (app *application) writeJSON(w http.ResponseWriter, status int, data interface{}, headers http.Header) error {
+func (app *application) writeJSON(w http.ResponseWriter, status int, data envelope, headers http.Header) error {
 	// Encode the data to JSON.
-	js, err := json.Marshal(data)
+	js, err := json.MarshalIndent(data, "", "\t")
 	if err != nil {
 		return err
 	}
