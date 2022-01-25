@@ -18,7 +18,7 @@ func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request)
 	// Get the params in the request context.
 	id, err := app.readIDParam(r)
 	if err != nil {
-		http.NotFound(w, r)
+		app.notFoundResponse(w, r)
 		return
 	}
 
@@ -35,8 +35,7 @@ func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request)
 	// Write the responses with movie in the JSON form.
 	err = app.writeJSON(w, http.StatusOK, envelope{"movie": movie}, nil)
 	if err != nil {
-		app.logger.Println(err)
-		http.Error(w, "Server Internal Error!", http.StatusInternalServerError)
+		app.serverErrorResponse(w, r, err)
 	}
 
 }
