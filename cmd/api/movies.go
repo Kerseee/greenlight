@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -8,9 +9,26 @@ import (
 	"greenlight.kerseeehuang.com/internal/data"
 )
 
-// createMovieHandler create a movie and store into DB.
+// createMovieHandler decodes the information from the request,
+// create a movie and store it into DB.
 func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "create a new movie")
+	// Declare an anonymous struct to holding decoded input.
+	var input struct {
+		Title   string   `json:"title"`
+		Year    int32    `json:"year"`
+		Runtime int32    `json:"runtime"`
+		Genres  []string `json:"genres"`
+	}
+
+	// Decode the movie information from the request.
+	err := json.NewDecoder(r.Body).Decode(&input)
+	if err != nil {
+		app.errorResponse(w, r, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// Print the decoded struct just for now.
+	fmt.Fprintf(w, "%+v\n", input)
 }
 
 // showMovieHandler shows a movie information.
