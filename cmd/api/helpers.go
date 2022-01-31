@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/julienschmidt/httprouter"
 )
@@ -59,8 +60,16 @@ func (app *application) writeJSON(w http.ResponseWriter, status int, data envelo
 
 // readJSON reads the JSON-encoded request, decodes it, and store result into dst.
 func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst interface{}) error {
+	// Limit the size of body to 1MB.
+	maxBytes := 1 << (10 * 2)
+	r.Body = http.MaxBytesReader(w, r.Body, int64(maxBytes))
+
+	// Declare a new decoder that disallow unknown fields.
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+
 	// Decode the JSON-encoded request and store the result it into dst.
-	err := json.NewDecoder(r.Body).Decode(dst)
+	err := dec.Decode(dst)
 
 	// Triage the error. Determine which type the err is.
 	if err != nil {
@@ -69,27 +78,46 @@ func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst int
 		var invalidUnmarshaledError *json.InvalidUnmarshalError
 
 		switch {
+		// Check syntax error.
 		case errors.As(err, &syntaxError):
 			return fmt.Errorf("body contains badly-formed JSON (at character %d)", syntaxError.Offset)
 
 		case errors.Is(err, io.ErrUnexpectedEOF):
 			return errors.New("body contains badly-formed JSON")
 
+		// Check unmarshal type error.
 		case errors.As(err, &unmarshalTypeError):
 			if unmarshalTypeError.Field != "" {
 				return fmt.Errorf("body contains incorrect JSON type for field %q", unmarshalTypeError.Field)
 			}
 			return fmt.Errorf("body containts incorrect JSON type (at character %d)", unmarshalTypeError.Offset)
 
+		// Check empty body error.
 		case errors.Is(err, io.EOF):
 			return errors.New("body must not be empty")
 
+		// Check unknown field error.
+		case strings.HasPrefix(err.Error(), "json: unknown field"):
+			fieldName := strings.TrimPrefix(err.Error(), "json: unknown field")
+			return fmt.Errorf("body contains unknown key %s", fieldName)
+
+		// Check size error.
+		case err.Error() == "http: request body too large":
+			return fmt.Errorf("body must not be larger than %d bytes", maxBytes)
+
+		// Panic the internal error.
 		case errors.As(err, &invalidUnmarshaledError):
 			panic(err)
 
 		default:
 			return err
 		}
+	}
+
+	// Check if the request body only contains single json.
+	err = dec.Decode(&struct{}{})
+	if err != io.EOF {
+		return errors.New("body must only contain a single JSON value")
 	}
 
 	return nil
