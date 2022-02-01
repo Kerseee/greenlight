@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"greenlight.kerseeehuang.com/internal/data"
+	"greenlight.kerseeehuang.com/internal/validator"
 )
 
 // createMovieHandler decodes the information from the request,
@@ -23,6 +24,21 @@ func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Reques
 	err := app.readJSON(w, r, &input)
 	if err != nil {
 		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	// Copy the values from input into movie.
+	movie := &data.Movie{
+		Title:   input.Title,
+		Year:    input.Year,
+		Runtime: input.Runtime,
+		Genres:  input.Genres,
+	}
+
+	// Validation the movie
+	v := validator.New()
+	if data.ValidateMovie(v, movie); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
 		return
 	}
 
