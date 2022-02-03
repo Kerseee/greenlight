@@ -11,6 +11,7 @@ import (
 	"time"
 
 	_ "github.com/lib/pq"
+	"greenlight.kerseeehuang.com/internal/data"
 )
 
 // version represents the version of this application.
@@ -32,6 +33,7 @@ type config struct {
 type application struct {
 	config config
 	logger *log.Logger
+	models data.Models
 }
 
 func main() {
@@ -56,12 +58,13 @@ func main() {
 		logger.Fatal(err)
 	}
 	defer db.Close()
-	logger.Println("database connection poll established")
+	logger.Println("database connection pool established")
 
 	// Create an application with config and logger.
 	app := &application{
 		config: cfg,
 		logger: logger,
+		models: data.NewModels(db),
 	}
 
 	// Create a HTTP server.

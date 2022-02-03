@@ -1,9 +1,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
-	"time"
 
 	"greenlight.kerseeehuang.com/internal/data"
 	"greenlight.kerseeehuang.com/internal/validator"
@@ -42,8 +42,24 @@ func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Print the decoded struct just for now.
-	fmt.Fprintf(w, "%+v\n", input)
+	// Insert the movie into DB, and update this movie struct instance
+	// with system generated information.
+	err = app.models.Movies.Insert(movie)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	// Create the headers and set location header
+	// to inform customers the location of their newly created movie.
+	headers := make(http.Header)
+	headers.Set("Location", fmt.Sprintf("/v1/movies/%d", movie.ID))
+
+	// Write the response with created movie and header in JSON.
+	err = app.writeJSON(w, http.StatusCreated, envelope{"movie": movie}, headers)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
 }
 
 // showMovieHandler shows a movie information.
@@ -55,14 +71,16 @@ func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Create a dummy movie.
-	movie := data.Movie{
-		ID:       id,
-		CreateAt: time.Now(),
-		Title:    "Jujutsu Kaisen 0",
-		Runtime:  105,
-		Genres:   []string{"anime", "horror", "romance"},
-		Version:  1,
+	// Fetch the movie from DB with given id.
+	movie, err := app.models.Movies.Get(id)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
 	}
 
 	// Write the responses with movie in the JSON form.
@@ -71,4 +89,95 @@ func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request)
 		app.serverErrorResponse(w, r, err)
 	}
 
+}
+
+// updateMovieHandler updates information of given movie in the request.
+func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Request) {
+	// Read the movie ID in the request r.
+	id, err := app.readIDParam(r)
+	if err != nil {
+		app.notFoundResponse(w, r)
+	}
+
+	// Fetch the current movie information with given movie id.
+	// Send 404 Not Found if there is no matching result in DB.
+	movie, err := app.models.Movies.Get(id)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	// Declare an anonymous struct to holding decoded input.
+	var input struct {
+		Title   string       `json:"title"`
+		Year    int32        `json:"year"`
+		Runtime data.Runtime `json:"runtime"`
+		Genres  []string     `json:"genres"`
+	}
+
+	// Decode the movie information from the request.
+	err = app.readJSON(w, r, &input)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	// Copy the values from input into movie.
+	movie.Title = input.Title
+	movie.Year = input.Year
+	movie.Runtime = input.Runtime
+	movie.Genres = input.Genres
+
+	// Validation the movie
+	v := validator.New()
+	if data.ValidateMovie(v, movie); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	// Update the information of this movie in DB.
+	err = app.models.Movies.Update(movie)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	// Write the updated movie to the response.
+	err = app.writeJSON(w, http.StatusOK, envelope{"movie": movie}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
+// deleteMovieHandler delete the movie from DB with given id in the request.
+func (app *application) deleteMovieHandler(w http.ResponseWriter, r *http.Request) {
+	// Read the movie id in the request.
+	id, err := app.readIDParam(r)
+	if err != nil {
+		app.notFoundResponse(w, r)
+		return
+	}
+
+	// Delete the movie from DB.
+	err = app.models.Movies.Delete(id)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	// Write the statusOK to the response.
+	err = app.writeJSON(w, http.StatusOK, envelope{"message": "movie succesfully deleted"}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
 }
