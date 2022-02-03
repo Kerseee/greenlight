@@ -1,6 +1,7 @@
 package data
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"time"
@@ -25,6 +26,8 @@ type MovieModel struct {
 	DB *sql.DB
 }
 
+var dbTimeOut = 3 * time.Second // 3s timeout for all CRUD
+
 // Insert inserts a movie into DB.
 func (m MovieModel) Insert(movie *Movie) error {
 	// Define the sql query for inserting.
@@ -36,8 +39,12 @@ func (m MovieModel) Insert(movie *Movie) error {
 	// Declare arguments array for values in the above query.
 	args := []interface{}{movie.Title, movie.Year, movie.Runtime, pq.Array(movie.Genres)}
 
+	// Create a context with 3-second timeout.
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeOut)
+	defer cancel()
+
 	// Execute query and return the returning error.
-	return m.DB.QueryRow(query, args...).Scan(&movie.ID, &movie.CreateAt, &movie.Version)
+	return m.DB.QueryRowContext(ctx, query, args...).Scan(&movie.ID, &movie.CreateAt, &movie.Version)
 }
 
 // Get retrives a movie given movie id from DB.
@@ -53,9 +60,13 @@ func (m MovieModel) Get(id int64) (*Movie, error) {
 		FROM movies
 		Where id = $1`
 
+	// Create time-out context.
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeOut)
+	defer cancel()
+
 	// Retrieve the movie from movies table in DB.
 	var movie Movie
-	err := m.DB.QueryRow(query, id).Scan(
+	err := m.DB.QueryRowContext(ctx, query, id).Scan(
 		&movie.ID,
 		&movie.CreateAt,
 		&movie.Title,
@@ -96,8 +107,12 @@ func (m MovieModel) Update(movie *Movie) error {
 		movie.Version,
 	}
 
+	// Create a context with 3-second timeout.
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeOut)
+	defer cancel()
+
 	// Execute the query with arguments and scan the new version value into the movie struct.
-	err := m.DB.QueryRow(query, args...).Scan(&movie.Version)
+	err := m.DB.QueryRowContext(ctx, query, args...).Scan(&movie.Version)
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
@@ -121,8 +136,12 @@ func (m MovieModel) Delete(id int64) error {
 		DELETE FROM movies
 		WHERE id = $1`
 
+	// Create a context with 3-second timeout.
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeOut)
+	defer cancel()
+
 	// Execute the query and get the execution result from DB.
-	result, err := m.DB.Exec(query, id)
+	result, err := m.DB.ExecContext(ctx, query, id)
 	if err != nil {
 		return err
 	}
