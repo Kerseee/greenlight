@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"greenlight.kerseeehuang.com/internal/data"
 	"greenlight.kerseeehuang.com/internal/validator"
@@ -112,6 +113,12 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	// Check the expected version first if it is provided.
+	if expVer := r.Header.Get("X-Expected-Version"); expVer != "" && strconv.FormatInt(int64(movie.Version), 32) != expVer {
+		app.editConflictResponse(w, r)
+		return
+	}
+
 	// Declare an anonymous struct to holding decoded input.
 	// Use pointer to detect whether keys in input are given or not.
 	var input struct {
@@ -152,7 +159,12 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 	// Update the information of this movie in DB.
 	err = app.models.Movies.Update(movie)
 	if err != nil {
-		app.serverErrorResponse(w, r, err)
+		switch {
+		case errors.Is(err, data.ErrEditConflict):
+			app.editConflictResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
 		return
 	}
 

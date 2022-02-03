@@ -5,8 +5,10 @@ import (
 	"errors"
 )
 
-// ErrRecordNotFound is an error that shows "record not found".
-var ErrRecordNotFound = errors.New("record not found")
+var (
+	ErrRecordNotFound = errors.New("record not found") // record not found
+	ErrEditConflict   = errors.New("edit conflict")    // edit conflict
+)
 
 // Models holds all data models used in the whole project.
 type Models struct {
