@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
 	"github.com/julienschmidt/httprouter"
+	"greenlight.kerseeehuang.com/internal/validator"
 )
 
 // envelope envelopes the struct that will be writen to responses in JSON.
@@ -121,4 +123,45 @@ func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst int
 	}
 
 	return nil
+}
+
+// readString returns the value from query qs with given key.
+// If the given key does not exist in qs, return defaultVal.
+func (app *application) readString(qs url.Values, key, defaultVal string) string {
+	// Extract the value with given key from qs.
+	val := qs.Get(key)
+	if val == "" {
+		return defaultVal
+	}
+	return val
+}
+
+// readCSV reads the string value from qs with given key, splits the string with ","
+// and then return the list of splited string.
+// If the given key does not exist in qs, return defaultVals.
+func (app *application) readCSV(qs url.Values, key string, defaultVals []string) []string {
+	// Extract values from qs.
+	csv := qs.Get(key)
+	if csv == "" {
+		return defaultVals
+	}
+	return strings.Split(csv, ",")
+}
+
+// readInt reads the value from qs with given key, parse the value from string to integer and return.
+// If parsing error happens, store error messages into v.
+func (app *application) readInt(qs url.Values, key string, defaultVal int, v *validator.Validator) int {
+	// Extract value from qs.
+	val := qs.Get(key)
+	if val == "" {
+		return defaultVal
+	}
+
+	// Parse the value.
+	intVal, err := strconv.Atoi(val)
+	if err != nil {
+		v.AddError(key, "must be integer")
+		return defaultVal
+	}
+	return intVal
 }
