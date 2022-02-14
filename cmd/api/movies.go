@@ -230,6 +230,16 @@ func (app *application) listMoviesHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Just dump the input for now.
-	fmt.Fprintf(w, "%+v\n", input)
+	// Get all results from DB based on given input.
+	movies, metadata, err := app.models.Movies.GetAll(input.Title, input.Genres, input.Filters)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+
+	// Write the movies to response.
+	data := envelope{"metadata": metadata, "movies": movies}
+	err = app.writeJSON(w, http.StatusOK, data, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
 }
