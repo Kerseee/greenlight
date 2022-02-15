@@ -7,7 +7,10 @@ import (
 
 // logError log the error via app.logger.
 func (app *application) logError(r *http.Request, err error) {
-	app.logger.Println(err)
+	app.logger.PrintInfo(err.Error(), map[string]string{
+		"request_method": r.Method,
+		"request_url":    r.URL.String(),
+	})
 }
 
 // errorResponse sends JSON-encoded error messages to client with error code.
