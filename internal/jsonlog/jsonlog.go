@@ -68,7 +68,7 @@ func (l *Logger) print(level Level, msg string, properties map[string]string) (i
 		Trace      string            `json:"trace,omitempty"`      // stack trace for debugging
 	}{
 		Level:      level.String(),
-		Time:       time.Now().Local().Format(time.RFC3339Nano),
+		Time:       time.Now().Local().Format(time.RFC3339),
 		Message:    msg,
 		Properties: properties,
 	}
