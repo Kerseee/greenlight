@@ -7,7 +7,7 @@ import (
 )
 
 // routes routes requests to the corresponding handlers.
-func (app *application) routes() *httprouter.Router {
+func (app *application) routes() http.Handler {
 	// Initialize the router.
 	router := httprouter.New()
 
@@ -23,5 +23,5 @@ func (app *application) routes() *httprouter.Router {
 	router.HandlerFunc(http.MethodGet, "/v1/movies/:id", app.showMovieHandler)
 	router.HandlerFunc(http.MethodPatch, "/v1/movies/:id", app.updateMovieHandler)
 	router.HandlerFunc(http.MethodDelete, "/v1/movies/:id", app.deleteMovieHandler)
-	return router
+	return app.recoverPanic(router)
 }
