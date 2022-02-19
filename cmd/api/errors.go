@@ -7,7 +7,7 @@ import (
 
 // logError log the error via app.logger.
 func (app *application) logError(r *http.Request, err error) {
-	app.logger.PrintInfo(err.Error(), map[string]string{
+	app.logger.PrintError(err.Error(), map[string]string{
 		"request_method": r.Method,
 		"request_url":    r.URL.String(),
 	})
@@ -61,4 +61,10 @@ func (app *application) failedValidationResponse(w http.ResponseWriter, r *http.
 func (app *application) editConflictResponse(w http.ResponseWriter, r *http.Request) {
 	msg := "unable to update due to an edit conflict, please try again"
 	app.errorResponse(w, r, http.StatusConflict, msg)
+}
+
+// rateLimitExceededResponse sends the Rate Limit Exceed Error response to the client.
+func (app *application) rateLimitExceededResponse(w http.ResponseWriter, r *http.Request) {
+	msg := "rate limit exceeded"
+	app.errorResponse(w, r, http.StatusTooManyRequests, msg)
 }

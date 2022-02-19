@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
+	"github.com/justinas/alice"
 )
 
 // routes routes requests to the corresponding handlers.
@@ -23,5 +24,12 @@ func (app *application) routes() http.Handler {
 	router.HandlerFunc(http.MethodGet, "/v1/movies/:id", app.showMovieHandler)
 	router.HandlerFunc(http.MethodPatch, "/v1/movies/:id", app.updateMovieHandler)
 	router.HandlerFunc(http.MethodDelete, "/v1/movies/:id", app.deleteMovieHandler)
-	return app.recoverPanic(router)
+
+	// Create a middleware chain.
+	chain := alice.New(app.recoverPanic)
+	if app.config.limiter.enabled {
+		chain = chain.Append(app.rateLimit)
+	}
+
+	return chain.Then(router)
 }
