@@ -9,3 +9,5 @@ require (
 	github.com/lib/pq v1.10.4
 	golang.org/x/time v0.0.0-20220210224613-90d013bbcef8
 )
+
+require golang.org/x/crypto v0.0.0-20220214200702-86341886e292 // indirect

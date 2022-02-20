@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-var shutDownTimeout = 5 * time.Second // 5 seconds
+const shutDownTimeout = 5 * time.Second // 5 seconds
 
 // serve create a http server and call server.ListenAndServe().
 // It only return non-nil error from server.ListenAndServe()

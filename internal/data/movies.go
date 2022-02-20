@@ -27,7 +27,7 @@ type MovieModel struct {
 	DB *sql.DB
 }
 
-var dbTimeOut = 3 * time.Second // 3s timeout for all CRUD
+const dbTimeOut = 3 * time.Second // 3s timeout for all CRUD
 
 // Insert inserts a movie into DB.
 func (m MovieModel) Insert(movie *Movie) error {
