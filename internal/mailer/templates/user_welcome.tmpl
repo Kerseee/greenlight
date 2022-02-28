@@ -1,0 +1,54 @@
+{{define "subject"}}Welcome to Greenlight{{end}}
+
+{{define "plainBody"}}
+Hello,
+
+Welcome to join Greenlight. We're excited to have you on board!
+
+Your email address is {{.Email}}. Please login with your email and password.
+
+Beforewards, please send a request to the `PUT /v1/users/activated` endpoint with the folloing JSON
+body to activate your account:
+
+{"token": "{{.activationToken}}"}
+
+Please note this one-time-use token will expire in 3 days.
+
+Thanks,
+
+The Greenlight Team
+{{end}}
+
+{{define "htmlBody"}}
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name="viewpoint" content="width=device-width" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+</head>
+
+<body>
+    <p>Hello,</p>
+
+    <p>Welcome to join Greenlight. We're excited to have you on board!</p>
+
+    <p>Your email address is {{.Email}}. Please login with your email and password.</p>
+
+    <p>Beforewards, [lease send a request to the `PUT /v1/users/activated` endpoint 
+    with the folloing JSON body to activate your account:</p>
+
+    <pre><code>
+    {"token": "{{.activationToken}}"}
+    </code></pre>
+
+    <p>Please note this one-time-use token will expire in 3 days.</p>
+
+    <p>Thanks,</p>
+
+    <p>The Greenlight Team</p>
+</body>
+
+
+</html>
+{{end}}

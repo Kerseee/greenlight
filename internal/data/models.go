@@ -13,6 +13,7 @@ var (
 // Models holds all data models used in the whole project.
 type Models struct {
 	Movies MovieModel
+	Tokens TokenModel
 	Users  UserModel
 }
 
@@ -20,6 +21,7 @@ type Models struct {
 func NewModels(db *sql.DB) Models {
 	return Models{
 		Movies: MovieModel{DB: db},
+		Tokens: TokenModel{DB: db},
 		Users:  UserModel{DB: db},
 	}
 }

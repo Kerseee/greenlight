@@ -2,6 +2,7 @@ package data
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"time"
@@ -96,6 +97,7 @@ func ValidateUser(v *validator.Validator, user *User) {
 }
 
 // Insert inserts a user into users table in the DB.
+// If the user's email has used by other users, return data.ErrDuplicateEmail.
 func (m UserModel) Insert(user *User) error {
 	// Prepare query and arguments.
 	query := `
@@ -191,4 +193,47 @@ func (m UserModel) Update(user *User) error {
 	}
 
 	return nil
+}
+
+// GetForToken return a users from DB with given scope and tokenPlaintext.
+// If no matching token is found in DB, return nil User and data.ErrRecordNotFound.
+func (m UserModel) GetForToken(scope string, tokenPlaintext string) (*User, error) {
+	// Prepare the query.
+	query := `
+		SELECT users.id, users.create_at, users.name, users.email, users.password_hash, users.activated, users.version
+		FROM users
+		INNER JOIN tokens ON users.id = tokens.user_id
+		WHERE tokens.hash = $1
+		AND tokens.scope = $2
+		AND tokens.expiry > $3`
+
+	// Hash the tokenPlaintext.
+	tokenHash := sha256.Sum256([]byte(tokenPlaintext))
+
+	// Prepare the arguments.
+	args := []interface{}{tokenHash[:], scope, time.Now()}
+
+	// Execute the query
+	var user User
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeOut)
+	defer cancel()
+	err := m.DB.QueryRowContext(ctx, query, args...).Scan(
+		&user.ID,
+		&user.CreateAt,
+		&user.Name,
+		&user.Email,
+		&user.Password.hash,
+		&user.Activated,
+		&user.Version,
+	)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrRecordNotFound
+		default:
+			return nil, err
+		}
+	}
+
+	return &user, nil
 }

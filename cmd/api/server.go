@@ -38,14 +38,26 @@ func (app *application) serve() error {
 		s := <-quit
 
 		// Inform admin about shutdown.
-		app.logger.PrintInfo("shutting down server", map[string]string{
+		app.logger.PrintInfo("caught signal", map[string]string{
 			"signal": s.String(),
 		})
 
 		// Shutdown the http server and send shutdown error to the main goroutine.
 		ctx, cancel := context.WithTimeout(context.Background(), shutDownTimeout)
 		defer cancel()
-		shutdownError <- srv.Shutdown(ctx)
+		err := srv.Shutdown(ctx)
+		if err != nil {
+			shutdownError <- err
+		}
+
+		// Inform the admin about completing backgroud tasks.
+		app.logger.PrintInfo("completing background tasks", map[string]string{
+			"addr": srv.Addr,
+		})
+
+		// Wait for all background tasks completion.
+		app.wg.Wait()
+		shutdownError <- nil
 	}()
 
 	// Start the HTTP server.
