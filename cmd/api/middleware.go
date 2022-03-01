@@ -1,13 +1,17 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
 	"golang.org/x/time/rate"
+	"greenlight.kerseeehuang.com/internal/data"
+	"greenlight.kerseeehuang.com/internal/validator"
 )
 
 // recoverPanic is a middleware. It recovers from the panic in the handler next
@@ -89,6 +93,59 @@ func (app *application) rateLimit(next http.Handler) http.Handler {
 
 		mu.Unlock()
 
+		next.ServeHTTP(w, r)
+	})
+}
+
+// authenticate is a middleware that authenticates the user in the request.
+func (app *application) authenticate(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Indicates in header that the response may vary based on authentication.
+		w.Header().Set("Vary", "Authorization")
+
+		// Get the authorization header.
+		authorizationHeader := r.Header.Get("Authorization")
+
+		// Directly call next the user is no authorized.
+		if authorizationHeader == "" {
+			r = app.contextSetUser(r, data.AnonymousUser)
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Varify the authorization token.
+		authTokenParts := strings.Split(authorizationHeader, " ")
+		if len(authTokenParts) != 2 || authTokenParts[0] != "Bearer" {
+			app.invalidAuthenticationTokenResponse(w, r)
+			return
+		}
+
+		// Extract the token.
+		token := authTokenParts[1]
+
+		// Validate the token.
+		v := validator.New()
+		if data.ValidateTokenPlaintext(v, token); !v.Valid() {
+			app.invalidAuthenticationTokenResponse(w, r)
+			return
+		}
+
+		// Get the user from DB by this token.
+		user, err := app.models.Users.GetForToken(data.ScopeAuthentication, token)
+		if err != nil {
+			switch {
+			case errors.Is(err, data.ErrRecordNotFound):
+				app.invalidAuthenticationTokenResponse(w, r)
+			default:
+				app.serverErrorResponse(w, r, err)
+			}
+			return
+		}
+
+		// Put user into the request context.
+		r = app.contextSetUser(r, user)
+
+		// Call the next handler.
 		next.ServeHTTP(w, r)
 	})
 }

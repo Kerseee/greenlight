@@ -11,15 +11,23 @@ import (
 	"greenlight.kerseeehuang.com/internal/validator"
 )
 
-const ScopeActivation = "activation"
+const (
+	ScopeActivation     = "activation"
+	ScopeAuthentication = "authentication"
+)
+
+const (
+	TokenExpireTimeActivation     = time.Hour * 24 * 3
+	TokenExpireTimeAuthentication = time.Hour * 24
+)
 
 // Token holds attributes of a token stored in DB.
 type Token struct {
-	Plaintext string // Token string being sent to customer
-	Hash      []byte // Hashed token being stored in DB
-	UserID    int64
-	Expiry    time.Time
-	Scope     string
+	Plaintext string    `json:"token"` // Token string being sent to customer
+	Hash      []byte    `json:"-"`     // Hashed token being stored in DB
+	UserID    int64     `json:"-"`
+	Expiry    time.Time `json:"expiry"`
+	Scope     string    `json:"-"`
 }
 
 // generateToken generates a token based on given userID, expire time (ttl) and used scope.

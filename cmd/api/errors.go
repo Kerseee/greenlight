@@ -68,3 +68,18 @@ func (app *application) rateLimitExceededResponse(w http.ResponseWriter, r *http
 	msg := "rate limit exceeded"
 	app.errorResponse(w, r, http.StatusTooManyRequests, msg)
 }
+
+// invalidCredentialsResponse sends the Status Unauthorized Error response to the client.
+func (app *application) invalidCredentialsResponse(w http.ResponseWriter, r *http.Request) {
+	msg := "invalid authentication credentials"
+	app.errorResponse(w, r, http.StatusUnauthorized, msg)
+}
+
+// invalidAuthenticationTokenResponse adds "WWW-Authenticate":"Bearer" into response header
+// and sends the Status Unauthorized Error response to the client.
+func (app *application) invalidAuthenticationTokenResponse(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("WWW-Authenticate", "Bearer")
+
+	msg := "invalid or missing authentication token"
+	app.errorResponse(w, r, http.StatusUnauthorized, msg)
+}

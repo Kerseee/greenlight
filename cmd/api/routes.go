@@ -29,11 +29,14 @@ func (app *application) routes() http.Handler {
 	router.HandlerFunc(http.MethodPost, "/v1/users", app.registerUserHandler)
 	router.HandlerFunc(http.MethodPut, "/v1/users/activated", app.activateUserHandler)
 
+	router.HandlerFunc(http.MethodPost, "/v1/tokens/authentication", app.createAuthenticationTokenHandler)
+
 	// Create a middleware chain.
 	chain := alice.New(app.recoverPanic)
 	if app.config.limiter.enabled {
 		chain = chain.Append(app.rateLimit)
 	}
+	chain = chain.Append(app.authenticate)
 
 	return chain.Then(router)
 }

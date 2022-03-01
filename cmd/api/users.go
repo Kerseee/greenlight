@@ -3,13 +3,10 @@ package main
 import (
 	"errors"
 	"net/http"
-	"time"
 
 	"greenlight.kerseeehuang.com/internal/data"
 	"greenlight.kerseeehuang.com/internal/validator"
 )
-
-const userTokenExpire = time.Hour * 24 * 3
 
 // registerUserHandler register a user into DB.
 func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Request) {
@@ -63,7 +60,7 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Generate an activating token.
-	token, err := app.models.Tokens.New(user.ID, userTokenExpire, data.ScopeActivation)
+	token, err := app.models.Tokens.New(user.ID, data.TokenExpireTimeActivation, data.ScopeActivation)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}

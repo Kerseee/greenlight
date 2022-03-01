@@ -11,6 +11,14 @@ import (
 	"greenlight.kerseeehuang.com/internal/validator"
 )
 
+var (
+	ErrDuplicateEmail   = errors.New("duplicate email") // "duplicate email"
+	pqErrDuplicateEmail = `pq: duplicate key value violates unique constraint "users_email_key"`
+)
+
+// AnonymousUser represents an anonymous user. May be used in authentication middleware.
+var AnonymousUser = &User{}
+
 // User holds information of a user.
 type User struct {
 	ID        int64     `json:"id"`
@@ -22,8 +30,10 @@ type User struct {
 	Version   int       `json:"-"`
 }
 
-var ErrDuplicateEmail = errors.New("duplicate email") // "duplicate email"
-var pqErrDuplicateEmail = `pq: duplicate key value violates unique constraint "users_email_key"`
+// IsAnonymous returns true if the user u is an anonymous (inactivated) user.
+func (u *User) IsAnonymous() bool {
+	return u == AnonymousUser
+}
 
 // UserModel is a wrapper of database connection pool.
 type UserModel struct {
