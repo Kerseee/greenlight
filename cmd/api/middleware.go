@@ -149,3 +149,64 @@ func (app *application) authenticate(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
+
+// requireActivatedUser is a middleware that check if the user is authenticated and activated.
+func (app *application) requireActivatedUser(next http.HandlerFunc) http.HandlerFunc {
+	f := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Retrive the user.
+		user := app.contextGetUser(r)
+
+		// Check if the user account is activated.
+		if !user.Activated {
+			app.invalidAccountResponse(w, r)
+			return
+		}
+
+		// Call the next handler.
+		next.ServeHTTP(w, r)
+	})
+
+	return app.requireAuthenticatedUser(f)
+}
+
+// requireAuthenticatedUser is a middleware that check if the user is authenticated.
+func (app *application) requireAuthenticatedUser(next http.HandlerFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Retrive the user.
+		user := app.contextGetUser(r)
+
+		// Check if the user is authenticated.
+		if user.IsAnonymous() {
+			app.authenticationRequiredResponse(w, r)
+			return
+		}
+
+		// Call the next handler.
+		next.ServeHTTP(w, r)
+	})
+}
+
+// requirePermission is a middlerware that check if the user has permission of the permission code.
+func (app *application) requirePermission(code string, next http.HandlerFunc) http.HandlerFunc {
+	f := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Get the user.
+		user := app.contextGetUser(r)
+
+		// Get the permissions of this user.
+		permissions, err := app.models.Permissions.GetAllForUser(user.ID)
+		if err != nil {
+			app.serverErrorResponse(w, r, err)
+			return
+		}
+
+		// Check if the permissions of this users has the given permission code.
+		if !permissions.Include(code) {
+			app.notPermittedResponse(w, r)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+
+	return app.requireActivatedUser(f)
+}

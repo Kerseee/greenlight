@@ -96,13 +96,13 @@ func (l *Logger) PrintInfo(msg string, properties map[string]string) {
 
 // PrintError write msg and properties to l.out with error severity level.
 func (l *Logger) PrintError(msg string, properties map[string]string) {
-	l.print(LevelInfo, msg, properties)
+	l.print(LevelError, msg, properties)
 }
 
 // PrintFatal write msg and properties to l.out with fatal severity level.
 // It terminates the application.
 func (l *Logger) PrintFatal(msg string, properties map[string]string) {
-	l.print(LevelInfo, msg, properties)
+	l.print(LevelFatal, msg, properties)
 	os.Exit(1)
 }
 
