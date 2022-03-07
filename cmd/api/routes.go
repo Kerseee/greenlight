@@ -33,7 +33,7 @@ func (app *application) routes() http.Handler {
 	router.HandlerFunc(http.MethodPost, "/v1/tokens/authentication", app.createAuthenticationTokenHandler)
 
 	// Create a middleware chain.
-	chain := alice.New(app.recoverPanic)
+	chain := alice.New(app.recoverPanic, app.enableCORS)
 	if app.config.limiter.enabled {
 		chain = chain.Append(app.rateLimit)
 	}

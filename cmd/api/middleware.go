@@ -210,3 +210,34 @@ func (app *application) requirePermission(code string, next http.HandlerFunc) ht
 
 	return app.requireActivatedUser(f)
 }
+
+// enableCORS enables CORS to the next handler.
+func (app *application) enableCORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Vary", "Origin")
+		w.Header().Add("Vary", "Access-Control-Request-Method")
+
+		// Get the origin
+		origin := r.Header.Get("Origin")
+
+		// Check if the origin is trusted.
+		if origin != "" {
+			for _, trustedOrg := range app.config.cors.trustedOrigins {
+				if origin != trustedOrg {
+					continue
+				}
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				// Check if the request is a preflight request.
+				if r.Method == http.MethodOptions && r.Header.Get("Access-Control-Request-Method") != "" {
+					w.Header().Set("Access-Control-Allow-Methods", "OPTIONS, PUT, PATCH, DELETE")
+					w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+					w.WriteHeader(http.StatusOK)
+					return
+				}
+				break
+			}
+		}
+		// Call the next handler.
+		next.ServeHTTP(w, r)
+	})
+}
