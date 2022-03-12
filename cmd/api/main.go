@@ -18,11 +18,10 @@ import (
 	"greenlight.kerseeehuang.com/internal/mailer"
 )
 
-// version represents the version of this application.
-const version = "1.0.0"
-
-// buildTime stores the building time when using go build command.
-var buildTime string
+var (
+	buildTime string // buildTime stores the building time when using go build command.
+	version   string // version represents the version of this application.
+)
 
 // config holds all the configuration settings for this application.
 type config struct {
