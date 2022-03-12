@@ -3,8 +3,12 @@ package main
 import (
 	"context"
 	"database/sql"
+	"expvar"
 	"flag"
+	"fmt"
 	"os"
+	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -14,8 +18,10 @@ import (
 	"greenlight.kerseeehuang.com/internal/mailer"
 )
 
-// version represents the version of this application.
-const version = "1.0.0"
+var (
+	buildTime string // buildTime stores the building time when using go build command.
+	version   string // version represents the version of this application.
+)
 
 // config holds all the configuration settings for this application.
 type config struct {
@@ -41,6 +47,10 @@ type config struct {
 		password string
 		sender   string
 	}
+	// cors holds trusted origins
+	cors struct {
+		trustedOrigins []string
+	}
 }
 
 // application holds the dependencies for HTTP handlers, helpers, loggers and middlewares.
@@ -60,7 +70,7 @@ func main() {
 	flag.IntVar(&cfg.port, "port", 8080, "API server port")
 	flag.StringVar(&cfg.env, "env", "development", "Environment (development|staging|production)")
 
-	flag.StringVar(&cfg.db.dsn, "db-dsn", os.Getenv("GREENLIGHT_DB_DSN"), "PostgreSQL DSN")
+	flag.StringVar(&cfg.db.dsn, "db-dsn", "", "PostgreSQL DSN")
 	flag.IntVar(&cfg.db.maxOpenConns, "db-max-open-conns", 25, "PostgreSQL max open connections")
 	flag.IntVar(&cfg.db.maxIdleConns, "db-max-idle-conns", 25, "PostgreSQL max idle connections")
 	flag.StringVar(&cfg.db.maxIdleTime, "db-max-idle-time", "15m", "PostgreSQL max connection idle time")
@@ -75,7 +85,21 @@ func main() {
 	flag.StringVar(&cfg.smtp.password, "smtp-password", "e4faa190df6fd5", "SMTP password")
 	flag.StringVar(&cfg.smtp.sender, "smtp-sender", "Greenlight <no-reply@example.com>", "SMTP sender")
 
+	flag.Func("cors-trustedOrigins", "Trusted CORS origins (space separated)", func(s string) error {
+		cfg.cors.trustedOrigins = strings.Fields(s)
+		return nil
+	})
+
+	displayVersion := flag.Bool("version", false, "Display application version and exit")
+
 	flag.Parse()
+
+	// Display the version and exit if flag "version" is set.
+	if *displayVersion {
+		fmt.Printf("Version:\t%s\n", version)
+		fmt.Printf("Build time:\t%s\n", buildTime)
+		os.Exit(0)
+	}
 
 	// Initialize a new logger for application.
 	logger := jsonlog.New(os.Stdout, jsonlog.LevelInfo)
@@ -87,6 +111,18 @@ func main() {
 	}
 	defer db.Close()
 	logger.PrintInfo("database connection pool established", nil)
+
+	// Publish metrics information to expvar handler.
+	expvar.NewString("version").Set(version)
+	expvar.Publish("goroutine", expvar.Func(func() interface{} {
+		return runtime.NumGoroutine()
+	}))
+	expvar.Publish("database", expvar.Func(func() interface{} {
+		return db.Stats()
+	}))
+	expvar.Publish("timestamp", expvar.Func(func() interface{} {
+		return time.Now().Unix()
+	}))
 
 	// Create an application with config and logger.
 	app := &application{

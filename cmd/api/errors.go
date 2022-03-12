@@ -83,3 +83,24 @@ func (app *application) invalidAuthenticationTokenResponse(w http.ResponseWriter
 	msg := "invalid or missing authentication token"
 	app.errorResponse(w, r, http.StatusUnauthorized, msg)
 }
+
+// authenticationRequiredResponse sends Status Unauthorized Error resonse to the client.
+// Called when authentication is needed but the client is not authenticated.
+func (app *application) authenticationRequiredResponse(w http.ResponseWriter, r *http.Request) {
+	msg := "require authentication to this end point"
+	app.errorResponse(w, r, http.StatusUnauthorized, msg)
+}
+
+// invalidAccountResponse sends Forbidden Error response to the client.
+// Called when the client's account is not activated.
+func (app *application) invalidAccountResponse(w http.ResponseWriter, r *http.Request) {
+	msg := "require activation of your account to this end point"
+	app.errorResponse(w, r, http.StatusForbidden, msg)
+}
+
+// notPermittedResponse sends Forbidden Error response to the client.
+// Called when the client is permitted for an end point.
+func (app *application) notPermittedResponse(w http.ResponseWriter, r *http.Request) {
+	msg := "your account has no permission for this resource"
+	app.errorResponse(w, r, http.StatusForbidden, msg)
+}

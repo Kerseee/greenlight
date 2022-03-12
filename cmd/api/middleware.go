@@ -2,13 +2,16 @@ package main
 
 import (
 	"errors"
+	"expvar"
 	"fmt"
-	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/felixge/httpsnoop"
+	"github.com/tomasen/realip"
 	"golang.org/x/time/rate"
 	"greenlight.kerseeehuang.com/internal/data"
 	"greenlight.kerseeehuang.com/internal/validator"
@@ -67,12 +70,7 @@ func (app *application) rateLimit(next http.Handler) http.Handler {
 	// Wrap next with limiter.
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Extract the ip from the request r.
-		ip, _, err := net.SplitHostPort(r.RemoteAddr)
-		if err != nil {
-			app.serverErrorResponse(w, r, err)
-			return
-		}
-
+		ip := realip.FromRequest(r)
 		mu.Lock()
 		// Get the limiter of this ip.
 		// If this ip is not in clients, then create a limiter for it.
@@ -147,5 +145,114 @@ func (app *application) authenticate(next http.Handler) http.Handler {
 
 		// Call the next handler.
 		next.ServeHTTP(w, r)
+	})
+}
+
+// requireActivatedUser is a middleware that check if the user is authenticated and activated.
+func (app *application) requireActivatedUser(next http.HandlerFunc) http.HandlerFunc {
+	f := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Retrive the user.
+		user := app.contextGetUser(r)
+
+		// Check if the user account is activated.
+		if !user.Activated {
+			app.invalidAccountResponse(w, r)
+			return
+		}
+
+		// Call the next handler.
+		next.ServeHTTP(w, r)
+	})
+
+	return app.requireAuthenticatedUser(f)
+}
+
+// requireAuthenticatedUser is a middleware that check if the user is authenticated.
+func (app *application) requireAuthenticatedUser(next http.HandlerFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Retrive the user.
+		user := app.contextGetUser(r)
+
+		// Check if the user is authenticated.
+		if user.IsAnonymous() {
+			app.authenticationRequiredResponse(w, r)
+			return
+		}
+
+		// Call the next handler.
+		next.ServeHTTP(w, r)
+	})
+}
+
+// requirePermission is a middlerware that check if the user has permission of the permission code.
+func (app *application) requirePermission(code string, next http.HandlerFunc) http.HandlerFunc {
+	f := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Get the user.
+		user := app.contextGetUser(r)
+
+		// Get the permissions of this user.
+		permissions, err := app.models.Permissions.GetAllForUser(user.ID)
+		if err != nil {
+			app.serverErrorResponse(w, r, err)
+			return
+		}
+
+		// Check if the permissions of this users has the given permission code.
+		if !permissions.Include(code) {
+			app.notPermittedResponse(w, r)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+
+	return app.requireActivatedUser(f)
+}
+
+// enableCORS enables CORS to the next handler.
+func (app *application) enableCORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Vary", "Origin")
+		w.Header().Add("Vary", "Access-Control-Request-Method")
+
+		// Get the origin
+		origin := r.Header.Get("Origin")
+
+		// Check if the origin is trusted.
+		if origin != "" {
+			for _, trustedOrg := range app.config.cors.trustedOrigins {
+				if origin != trustedOrg {
+					continue
+				}
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				// Check if the request is a preflight request.
+				if r.Method == http.MethodOptions && r.Header.Get("Access-Control-Request-Method") != "" {
+					w.Header().Set("Access-Control-Allow-Methods", "OPTIONS, PUT, PATCH, DELETE")
+					w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+					w.WriteHeader(http.StatusOK)
+					return
+				}
+				break
+			}
+		}
+		// Call the next handler.
+		next.ServeHTTP(w, r)
+	})
+}
+
+// metrics is a middleware that records total number of request,
+// response and cumulative time that passed by this middleware.
+func (app *application) metrics(next http.Handler) http.Handler {
+	totalRequestsReceived := expvar.NewInt("total_requests_received")
+	totalResponsesSent := expvar.NewInt("total_responses_sent")
+	totalProcessingTime := expvar.NewInt("total_processing_time_microseconds")
+	totalResponsesSentByStatus := expvar.NewMap("total_responses_sent_by_status")
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		totalRequestsReceived.Add(1)
+		metrics := httpsnoop.CaptureMetrics(next, w, r)
+		totalResponsesSent.Add(1)
+		totalProcessingTime.Add(metrics.Duration.Microseconds())
+		totalResponsesSentByStatus.Add(strconv.Itoa(metrics.Code), 1)
 	})
 }

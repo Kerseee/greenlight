@@ -59,10 +59,18 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	// Generate permission of reading movies for this user.
+	err = app.models.Permissions.AddForUser(user.ID, data.PermissionReadMovies)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
 	// Generate an activating token.
 	token, err := app.models.Tokens.New(user.ID, data.TokenExpireTimeActivation, data.ScopeActivation)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
+		return
 	}
 
 	// Send a welcome email to this user.
