@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"expvar"
 	"flag"
+	"fmt"
 	"os"
 	"runtime"
 	"strings"
@@ -19,6 +20,9 @@ import (
 
 // version represents the version of this application.
 const version = "1.0.0"
+
+// buildTime stores the building time when using go build command.
+var buildTime string
 
 // config holds all the configuration settings for this application.
 type config struct {
@@ -87,7 +91,16 @@ func main() {
 		return nil
 	})
 
+	displayVersion := flag.Bool("version", false, "Display application version and exit")
+
 	flag.Parse()
+
+	// Display the version and exit if flag "version" is set.
+	if *displayVersion {
+		fmt.Printf("Version:\t%s\n", version)
+		fmt.Printf("Build time:\t%s\n", buildTime)
+		os.Exit(0)
+	}
 
 	// Initialize a new logger for application.
 	logger := jsonlog.New(os.Stdout, jsonlog.LevelInfo)
